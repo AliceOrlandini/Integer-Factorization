@@ -98,7 +98,7 @@ vector<int> parallelTrialDivision(int num) {
 
         // if it is the second last thread, the end is the number
         // otherwise, the end is the start plus the range minus 1
-        if(i == numThreads - 2) { // why -2? why not -1?
+        if(i == numThreads - 2) {
             end = num;
         } else {
             end = start + range - 1;
