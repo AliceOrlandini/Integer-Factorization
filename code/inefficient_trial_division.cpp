@@ -50,13 +50,15 @@ void findPrimesInRange(int start, int end, int num, vector<int>& primes) {
         // if i in the range is prime and num is divisible by i
         // add it to the primes vector
         if (isPrime(i) && num % i == 0) {
+            // I create a block to lock the mutex
+            // so that the lock_guard is destroyed after the block
+            {
+                // lock the mutex
+                lock_guard<mutex> lock(mtx);
 
-            // lock the mutex
-            lock_guard<mutex> lock(mtx);
-
-            // add the prime factor to the vector
-            primes.push_back(i);
-
+                // add the prime factor to the vector
+                primes.push_back(i);
+            } 
             // continue dividing as long as possible
             // this way we avoid adding the same factor multiple times
             while (num % i == 0) {
