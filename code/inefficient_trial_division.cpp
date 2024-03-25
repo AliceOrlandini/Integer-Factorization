@@ -54,13 +54,7 @@ void findPrimesInRange(int start, int end, int num, vector<factor_exponent>& pri
         // if i in the range is prime and num is divisible by i
         // add it to the primes vector
         if (isPrime(i) && num % i == 0) {
-            
-            // lock the mutex
-            lock_guard<mutex> lock(mtx);
 
-            // add the prime factor to the vector
-            //primes.push_back(i); 
-            
             // continue dividing as long as possible
             // this way we avoid adding the same factor multiple times
             int exponent = 0;
@@ -68,7 +62,12 @@ void findPrimesInRange(int start, int end, int num, vector<factor_exponent>& pri
                 exponent++; 
                 num /= i;
             }
-            primes.push_back({i, exponent});
+
+            // lock the mutex
+            {
+                lock_guard<mutex> lock(mtx);
+                primes.push_back({i, exponent});
+            }
         }
     }
 }
