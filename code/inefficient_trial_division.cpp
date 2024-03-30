@@ -5,6 +5,10 @@
 
 using namespace std;
 mutex mtx; // mutex for output synchronization
+struct factor_exponent {
+    int factor;
+    int exponent;
+};
 
 /**
  * @brief Function to check if a number is prime (inefficiently)
@@ -43,26 +47,26 @@ bool isPrime(int n) {
  * @param num number to find prime factors of
  * @param primes vector to store prime factors
  */
-void findPrimesInRange(int start, int end, int num, vector<int>& primes) {
+void findPrimesInRange(int start, int end, int num, vector<factor_exponent>& primes) {
     
     // check all numbers in the range
     for (int i = start; i <= end; ++i) {
         // if i in the range is prime and num is divisible by i
         // add it to the primes vector
         if (isPrime(i) && num % i == 0) {
-            // I create a block to lock the mutex
-            // so that the lock_guard is destroyed after the block
-            {
-                // lock the mutex
-                lock_guard<mutex> lock(mtx);
 
-                // add the prime factor to the vector
-                primes.push_back(i);
-            } 
             // continue dividing as long as possible
             // this way we avoid adding the same factor multiple times
+            int exponent = 0;
             while (num % i == 0) {
+                exponent++; 
                 num /= i;
+            }
+
+            // lock the mutex
+            {
+                lock_guard<mutex> lock(mtx);
+                primes.push_back({i, exponent});
             }
         }
     }
@@ -72,11 +76,11 @@ void findPrimesInRange(int start, int end, int num, vector<int>& primes) {
  * @brief Main function for parallel factorization, using trial division
  * 
  * @param num number to find prime factors of
- * @return vector<int> vector of prime factors
+ * @return vector<factor_exponent> vector of prime factors
  */
-vector<int> parallelTrialDivision(int num) {
+vector<factor_exponent> parallelTrialDivision(int num) {
     
-    vector<int> primes;
+    vector<factor_exponent> primes;
     vector<thread> threads;
 
     // number of threads to be used for parallelization
@@ -125,11 +129,15 @@ int main(int argc, char *argv[]) {
     int num = atoi(argv[1]);
 
     // find the prime factors of the number
-    vector<int> factors = parallelTrialDivision(num);
+    vector<factor_exponent> factors = parallelTrialDivision(num);
 
-    cout << "Prime numbers of " << num << " are: ";
-    for (int factor : factors) {
-        cout << factor << " ";
+    cout << num << " = ";
+    for (auto it = factors.begin(); it != factors.end(); ++it) {
+        cout << it->factor << "^" << it->exponent;
+        // print a * between factors except for the last one
+        if (next(it) != factors.end()) {
+            cout << " * ";
+        }
     }
     cout << endl;
 
