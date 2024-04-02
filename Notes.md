@@ -58,6 +58,12 @@ int main() {
 
 Ultimately, the choice between `clock()` in C and `chrono::high_resolution_clock::now()` in C++ depends on your specific requirements, the platform you're targeting, and your personal preferences.
 
+---
+
+Domande da fare al Professore:
+
+- Durante l'esecuzione del CPU Profiler ci siamo resi conto che vengono generati più thread del dovuto. Ci sono infatti diversi thread che vengono generati in modo randomico e che hanno una occupazione della CPU molto bassa (circa 0.1%). Questo comportamento è normale? Se sì, perché?
+
 
 ---
 

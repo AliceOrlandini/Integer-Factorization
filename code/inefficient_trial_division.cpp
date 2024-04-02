@@ -79,13 +79,13 @@ void findPrimesInRange(int start, int end, int num, vector<factor_exponent>& pri
  * @param num number to find prime factors of
  * @return vector<factor_exponent> vector of prime factors
  */
-vector<factor_exponent> parallelTrialDivision(int num) {
+vector<factor_exponent> parallelTrialDivision(int num, int numThreads) {
     
     vector<factor_exponent> primes;
     vector<thread> threads;
 
     // number of threads to be used for parallelization
-    const int numThreads = thread::hardware_concurrency();
+    // const int numThreads = thread::hardware_concurrency();
 
     // divide the work equally among the threads
     int range = num / numThreads;
@@ -95,26 +95,22 @@ vector<factor_exponent> parallelTrialDivision(int num) {
     int end = range;
 
     // create and start the threads
-    for (int i = 0; i < numThreads; ++i) {
+    for (int i = 0; i < (numThreads - 1); ++i) {
         threads.emplace_back(findPrimesInRange, start, end, num, ref(primes));
         
         // Print thread identifier
-        cout <<"Thread["<<i<<"] ID: " << threads[i].get_id() << endl;
+        // cout <<"Thread["<<i<<"] ID: " << threads[i].get_id() << endl;
 
         // update the start and end for the next thread
         start = end + 1;
-
-        // if it is the second last thread, the end is the number
-        // otherwise, the end is the start plus the range minus 1
-        if(i == numThreads - 2) {
-            end = num;
-        } else {
-            end = start + range - 1;
-        }
-
+        end = start + range - 1;
     }
+    end = num;
 
-    // wait for the threads to finish
+    // Last thread is the main thread
+    findPrimesInRange(start, end, num, primes);
+
+    // wait for the other threads to finish
     for (auto& thread : threads) {
         thread.join();
     }
@@ -124,36 +120,51 @@ vector<factor_exponent> parallelTrialDivision(int num) {
 
 int main(int argc, char *argv[]) {
     
-    if (argc != 2) {
-        cout << "Please provide a number as argument." << endl;
+    if (argc != 4) {
+        cout << "Please provide: Number of Threads, Number to be Factorized and 0 or 1 to execute the program in BASH or USER mode." << endl;
         return 1;
     }
 
+    // get the number of threads from the command line argument
+    int NUM_THREADS = atoi(argv[1]);
+
     // get the number from the command line argument
-    int num = atoi(argv[1]);
+    int NUMBER = atoi(argv[2]);
+
+    // get the mode (0: bash, 1: user)
+    bool EXECUTION_MODE = atoi(argv[3]);
 
     // start measuring time
-    chrono::steady_clock::time_point start = chrono::high_resolution_clock::now();
-
+    auto start = chrono::high_resolution_clock::now();
+    // chrono::steady_clock::time_point start = chrono::high_resolution_clock::now();
+    
     // find the prime factors of the number
-    vector<factor_exponent> factors = parallelTrialDivision(num);
+    vector<factor_exponent> factors = parallelTrialDivision(NUMBER, NUM_THREADS);
 
-    // ttop measuring time
-    chrono::steady_clock::time_point end = chrono::high_resolution_clock::now();
+    // stop measuring time
+    auto end = chrono::high_resolution_clock::now();
+    // chrono::steady_clock::time_point end = chrono::high_resolution_clock::now();
+    
 
     // calculate the time duration
-    chrono::milliseconds duration = chrono::duration_cast<chrono::milliseconds>(end - start);
-    // print the time taken to find the prime factors
-    cout << "Time taken: " << duration.count() << " milliseconds." << endl;
+    auto duration = chrono::duration_cast<chrono::milliseconds>(end - start);
+    // chrono::milliseconds duration = chrono::duration_cast<chrono::milliseconds>(end - start);
 
-    cout << num << " = ";
-    for (auto it = factors.begin(); it != factors.end(); ++it) {
-        cout << it->factor << "^" << it->exponent;
-        // print a * between factors except for the last one
-        if (next(it) != factors.end()) {
-            cout << " * ";
+    if(EXECUTION_MODE) {
+        cout << "Time taken: " << duration.count() << " milliseconds." << endl;
+
+        cout << NUMBER << " = ";
+        for (auto it = factors.begin(); it != factors.end(); ++it) {
+            cout << it->factor << "^" << it->exponent;
+            // print a * between factors except for the last one
+            if (next(it) != factors.end()) {
+                cout << " * ";
+            }
         }
+        cout << endl;
+    } else {
+        cout << duration.count() << endl;
     }
-    cout << endl;
+    
     return 0;
 }
