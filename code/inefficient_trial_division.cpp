@@ -2,6 +2,7 @@
 #include <vector>
 #include <thread>
 #include <mutex>
+#include <chrono>
 
 using namespace std;
 mutex mtx; // mutex for output synchronization
@@ -96,6 +97,9 @@ vector<factor_exponent> parallelTrialDivision(int num) {
     // create and start the threads
     for (int i = 0; i < numThreads; ++i) {
         threads.emplace_back(findPrimesInRange, start, end, num, ref(primes));
+        
+        // Print thread identifier
+        cout <<"Thread["<<i<<"] ID: " << threads[i].get_id() << endl;
 
         // update the start and end for the next thread
         start = end + 1;
@@ -128,8 +132,19 @@ int main(int argc, char *argv[]) {
     // get the number from the command line argument
     int num = atoi(argv[1]);
 
+    // start measuring time
+    chrono::steady_clock::time_point start = chrono::high_resolution_clock::now();
+
     // find the prime factors of the number
     vector<factor_exponent> factors = parallelTrialDivision(num);
+
+    // ttop measuring time
+    chrono::steady_clock::time_point end = chrono::high_resolution_clock::now();
+
+    // calculate the time duration
+    chrono::milliseconds duration = chrono::duration_cast<chrono::milliseconds>(end - start);
+    // print the time taken to find the prime factors
+    cout << "Time taken: " << duration.count() << " milliseconds." << endl;
 
     cout << num << " = ";
     for (auto it = factors.begin(); it != factors.end(); ++it) {
@@ -140,6 +155,5 @@ int main(int argc, char *argv[]) {
         }
     }
     cout << endl;
-
     return 0;
 }
