@@ -77,6 +77,7 @@ void findPrimesInRange(int start, int end, int num, vector<factor_exponent>& pri
  * @brief Main function for parallel factorization, using trial division
  * 
  * @param num number to find prime factors of
+ * @param numThreads number of threads to use
  * @return vector<factor_exponent> vector of prime factors
  */
 vector<factor_exponent> parallelTrialDivision(int num, int numThreads) {
