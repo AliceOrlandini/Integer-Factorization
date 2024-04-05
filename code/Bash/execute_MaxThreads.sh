@@ -2,7 +2,7 @@
 
 # Check the number of parameters
 if [ "$#" -ne 4 ]; then
-    echo "Error: Illegal number of parameters"
+    echo "Error: Illegal number of parameters, please insert: executable path, number of iterations, max number of threads and number to be factorized."
     exit 1
 fi
 
