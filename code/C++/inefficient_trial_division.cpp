@@ -136,14 +136,16 @@ int main(int argc, char *argv[]) {
     bool EXECUTION_MODE = atoi(argv[3]);
 
     // start measuring time
-    auto start = chrono::high_resolution_clock::now();
+    // auto start = chrono::high_resolution_clock::now();
+    auto start = chrono::steady_clock::now();
     // chrono::steady_clock::time_point start = chrono::high_resolution_clock::now();
     
     // find the prime factors of the number
     vector<factor_exponent> factors = parallelTrialDivision(NUMBER, NUM_THREADS);
 
     // stop measuring time
-    auto end = chrono::high_resolution_clock::now();
+    // auto end = chrono::high_resolution_clock::now();
+    auto end = chrono::steady_clock::now();
     // chrono::steady_clock::time_point end = chrono::high_resolution_clock::now();
     
 
