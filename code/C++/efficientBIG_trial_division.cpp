@@ -3,44 +3,20 @@
 #include <thread>
 #include <mutex>
 #include <chrono>
-#include <math.h>
+
+#include <boost/multiprecision/cpp_int.hpp>
 
 using namespace std;
+
+namespace mp = boost::multiprecision;
+
+
 mutex mtx; // mutex for output synchronization
+
 struct factor_exponent {
-    unsigned long long factor;
+    mp::cpp_int factor;
     int exponent;
 };
-
-unsigned long long modulo(unsigned long long base, unsigned long long exponent, unsigned long long mod) {
-    int result = 1;
-    base = base % mod;
-    while (exponent > 0) {
-        if (exponent % 2 == 1) {
-            result = (result * base) % mod;   
-        }
-        exponent = exponent >> 1;
-        base = (base * base) % mod;
-    }
-    return result;
-}
-
-bool fermatTest(unsigned long long n, int iterations) {
-    if (n <= 1 || n == 4){
-        return false;
-    }
-    if (n <= 3) {
-        return true;
-    }
-
-    for (int i = 0; i < iterations; i++) {
-        unsigned long long a = 2 + rand() % (n - 4);
-        if (modulo(a, n - 1, n) != 1) { 
-            return false;
-        }
-    }
-    return true;
-}
 
 /**
  * @brief Function to check if a number is prime
@@ -48,12 +24,12 @@ bool fermatTest(unsigned long long n, int iterations) {
  * @param n number to check if prime
  * @return true if prime, false otherwise
  */
-bool isPrime(unsigned long long n) {
+bool isPrime(mp::cpp_int n) {
     if (n <= 1) return false;
     if (n <= 3) return true;
     // if (n % 2 == 0 || n % 3 == 0) return false;
     if (n % 3 == 0) return false;
-    for (unsigned long long i = 5; i * i <= n; i += 6) {
+    for (mp::cpp_int i = 5; i * i <= n; i += 6) {
         if (n % i == 0 || n % (i + 2) == 0) return false;
     }
     return true;
@@ -67,30 +43,28 @@ bool isPrime(unsigned long long n) {
  * @param num number to find prime factors of
  * @param primes vector to store prime factors
  */
-void findPrimesInRange(unsigned long long start, unsigned long long end, unsigned long long num, vector<factor_exponent>& primes) {
+void findPrimesInRange(mp::cpp_int start, mp::cpp_int end, mp::cpp_int num, vector<factor_exponent>& primes) {
 
     // check all numbers in the range
-    for (unsigned long long i = start; i <= end; i += 2) {
+    for (mp::cpp_int i = start; i <= end; i += 2) {
+        
         // if i in the range is prime and num is divisible by i
         // add it to the primes vector
-        if (fermatTest(i, 10)) {
 
-            // perform the isPrime check only if the Fermat test has passed
-            if(isPrime(i) && (num % i) == 0) {
+        if((num % i) == 0) {
 
-                // continue dividing as long as possible
-                // this way we avoid adding the same factor multiple times
-                int exponent = 0;
-                while (num % i == 0) { 
-                    exponent++;
-                    num /= i;
-                }
+            // continue dividing as long as possible
+            // this way we avoid adding the same factor multiple times
+            int exponent = 0;
+            while (num % i == 0) { 
+                exponent++;
+                num /= i;
+            }
 
-                // lock the mutex
-                {
-                    lock_guard<mutex> lock(mtx);
-                    primes.push_back({ i, exponent });
-                }
+            // lock the mutex
+            {
+                lock_guard<mutex> lock(mtx);
+                primes.push_back({ i, exponent });
             }
         }
     }
@@ -103,7 +77,7 @@ void findPrimesInRange(unsigned long long start, unsigned long long end, unsigne
  * @param numThreads number of threads to use
  * @return vector<factor_exponent> vector of prime factors
  */
-vector<factor_exponent> parallelTrialDivision(unsigned long long num, int numThreads) {
+vector<factor_exponent> parallelTrialDivision(mp::cpp_int num, int numThreads) {
 
     vector<factor_exponent> primes;
     vector<thread> threads;
@@ -111,7 +85,7 @@ vector<factor_exponent> parallelTrialDivision(unsigned long long num, int numThr
     // number of threads to be used for parallelization
     // const int numThreads = thread::hardware_concurrency();
 
-    unsigned long long old_num = num;
+    mp::cpp_int old_num = num;
 
     // Checking in advance if the number is divisible by 2
     if (num % 2 == 0) {
@@ -125,14 +99,16 @@ vector<factor_exponent> parallelTrialDivision(unsigned long long num, int numThr
     // Now the interval to check is nearly halved
     // as checking divisibility by even numbers is not needed
 
-    unsigned long long sqrt_num = (unsigned long long) sqrt(num);
+    cout << "Number after dividing by 2: " << num << endl;
+    mp::cpp_int sqrt_num = (mp::cpp_int) mp::sqrt(num);
+    cout << "Sqrt: " << sqrt_num << endl;
 
     // divide the work equally among the threads
-    unsigned long long range = sqrt_num / numThreads;
+    mp::cpp_int range = sqrt_num / numThreads;
 
     // define the start and end of the range for the first thread
-    unsigned long long start = 3;
-    unsigned long long end = (range % 2 == 0) ? range + 1 : range;
+    mp::cpp_int start = 3;
+    mp::cpp_int end = (range % 2 == 0) ? range + 1 : range;
 
     // create and start the threads
     for (int i = 0; i < (numThreads - 1); ++i) {
@@ -165,18 +141,47 @@ vector<factor_exponent> parallelTrialDivision(unsigned long long num, int numThr
     if(primes.empty()) {
         primes.push_back({ num, 1 });
     } else {
+
         // Check if all the factors have been found 
         // (otherwise a prime factor larger than the 
         // square root of the number is missing)
 
-        unsigned long long product = 1;
+        // We have to remove from primes all the non-primes factor that were found
+        // And add the (possible) missing prime factor
+
+        cout << old_num << " = ";
         for (auto it = primes.begin(); it != primes.end(); ++it) {
-            product *= pow(it->factor, it->exponent);
+            cout << it->factor << "^" << it->exponent;
+            // print a * between factors except for the last one
+            if (next(it) != primes.end()) {
+                cout << " * ";
+            }
+        }
+        cout << endl;
+
+
+        mp::cpp_int product = 1;
+        for (auto it = primes.begin(); it != primes.end(); ++it) {
+
+            cout << "Current factor: " << it->factor << " - Current exponent: " << it->exponent << "\n";
+
+            if(!isPrime(it->factor)) {
+                cout << "NOT PRIME\n";
+                // If the factor is not prime, we have to remove it
+                primes.erase(it);
+                it--;
+                // TRY WITH THIS NUMBER 30993450745582 
+                // AND NUMBER LIKE THIS ONE!
+            }
+            else {
+                product *= pow(it->factor, it->exponent);
+            }
+
         }
         if (product != old_num) {
             primes.push_back({ old_num / product, 1 });
         }
-    }    
+    }
 
     return primes;
 }
@@ -192,7 +197,8 @@ int main(int argc, char* argv[]) {
     int NUM_THREADS = atoi(argv[1]);
 
     // get the number from the command line argument
-    unsigned long long NUMBER = stoull(argv[2]);
+    mp::cpp_int NUMBER = mp::cpp_int(argv[2]);
+    cout << "Number: " << NUMBER << endl;
 
     // get the mode (0: bash, 1: user)
     bool EXECUTION_MODE = atoi(argv[3]);

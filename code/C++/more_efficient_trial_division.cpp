@@ -6,41 +6,13 @@
 #include <math.h>
 
 using namespace std;
+
 mutex mtx; // mutex for output synchronization
+
 struct factor_exponent {
     unsigned long long factor;
     int exponent;
 };
-
-unsigned long long modulo(unsigned long long base, unsigned long long exponent, unsigned long long mod) {
-    int result = 1;
-    base = base % mod;
-    while (exponent > 0) {
-        if (exponent % 2 == 1) {
-            result = (result * base) % mod;   
-        }
-        exponent = exponent >> 1;
-        base = (base * base) % mod;
-    }
-    return result;
-}
-
-bool fermatTest(unsigned long long n, int iterations) {
-    if (n <= 1 || n == 4){
-        return false;
-    }
-    if (n <= 3) {
-        return true;
-    }
-
-    for (int i = 0; i < iterations; i++) {
-        unsigned long long a = 2 + rand() % (n - 4);
-        if (modulo(a, n - 1, n) != 1) { 
-            return false;
-        }
-    }
-    return true;
-}
 
 /**
  * @brief Function to check if a number is prime
@@ -71,26 +43,24 @@ void findPrimesInRange(unsigned long long start, unsigned long long end, unsigne
 
     // check all numbers in the range
     for (unsigned long long i = start; i <= end; i += 2) {
+        
         // if i in the range is prime and num is divisible by i
         // add it to the primes vector
-        if (fermatTest(i, 10)) {
 
-            // perform the isPrime check only if the Fermat test has passed
-            if(isPrime(i) && (num % i) == 0) {
+        if((num % i) == 0) {
 
-                // continue dividing as long as possible
-                // this way we avoid adding the same factor multiple times
-                int exponent = 0;
-                while (num % i == 0) { 
-                    exponent++;
-                    num /= i;
-                }
+            // continue dividing as long as possible
+            // this way we avoid adding the same factor multiple times
+            int exponent = 0;
+            while (num % i == 0) { 
+                exponent++;
+                num /= i;
+            }
 
-                // lock the mutex
-                {
-                    lock_guard<mutex> lock(mtx);
-                    primes.push_back({ i, exponent });
-                }
+            // lock the mutex
+            if(isPrime(i)){
+                lock_guard<mutex> lock(mtx);
+                primes.push_back({ i, exponent });
             }
         }
     }
@@ -165,18 +135,24 @@ vector<factor_exponent> parallelTrialDivision(unsigned long long num, int numThr
     if(primes.empty()) {
         primes.push_back({ num, 1 });
     } else {
+
         // Check if all the factors have been found 
         // (otherwise a prime factor larger than the 
         // square root of the number is missing)
 
+        // Add the (possible) missing prime factor
         unsigned long long product = 1;
         for (auto it = primes.begin(); it != primes.end(); ++it) {
-            product *= pow(it->factor, it->exponent);
+
+            for(int i = 0; i < it->exponent; i++){
+                product *= it->factor;
+            }
+
         }
         if (product != old_num) {
             primes.push_back({ old_num / product, 1 });
         }
-    }    
+    }
 
     return primes;
 }
