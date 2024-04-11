@@ -64,6 +64,20 @@ Domande da fare al Professore:
 
 - Durante l'esecuzione del CPU Profiler ci siamo resi conto che vengono generati più thread del dovuto. Ci sono infatti diversi thread che vengono generati in modo randomico e che hanno una occupazione della CPU molto bassa (circa 0.1%). Questo comportamento è normale? Se sì, perché?
 
+Consigli da parte del Professore:
+
+- Nel grafico in cui facciamo vedere lo speed-up e il tempo di esecuzione al variare dei thread, fare diverse curve con numeri di diversa dimensione per vedere come si comporta l'algoritmo anche al variare del carico.
+
+---
+
+Struttura Slides:
+
+1) Descrizione dell'Algoritmo
+2) Modello di Parallelismo
+3) Caratteristiche della CPU
+4) Speedup al variare del carico
+5) Ottimizzazione
+
 
 ---
 
@@ -71,3 +85,8 @@ References
 
 - https://github.com/Albran99/BitonicSort/tree/main
 - https://github.com/FedericoCavedoni/ComputerArchitecture_Project/tree/main
+
+
+TODO: cambiare il timer usando steady clock
+
+TODO: fare un bash per trovare il numero migliore di iterazioni per la fermat considerando anche il **numero** di falsi primi che genera il fermat test. Cercare di minimizzare entrambi.
