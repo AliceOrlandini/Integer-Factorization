@@ -1,2 +1,4 @@
 .vscode
 code/Python/*/output*.csv
+code/Python/*/Data
+code/Batch/*.exe
