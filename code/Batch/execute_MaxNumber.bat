@@ -41,7 +41,7 @@ echo number,iteration,execution_time> %OUTPUT_FILE%
 
 REM Execute the program
 for /L %%n in (%STEP%,%STEP%,%MAX_NUMBER%) do (
-    for /L %%i in (0,1,%NUM_ITERATIONS%) do (
+    for /L %%i in (1,1,%NUM_ITERATIONS%) do (
         echo Running iteration %%i with the number %%n
         echo|set /p="%%n,%%i," >> %OUTPUT_FILE%
         call "%EXECUTABLE%" %NUM_THREADS% %%n 0 >> %OUTPUT_FILE%

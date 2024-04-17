@@ -38,7 +38,7 @@ echo num_threads,iteration,execution_time> %OUTPUT_FILE%
 
 REM Execute the program
 for /L %%t in (1,1,%MAX_THREADS%) do (
-    for /L %%i in (0,1,%NUM_ITERATIONS%) do (
+    for /L %%i in (1,1,%NUM_ITERATIONS%) do (
         echo Running iteration %%i with %%t threads
         set /a "IDX=%%t-1"
         echo|set /p="%%t,%%i," >> %OUTPUT_FILE%
