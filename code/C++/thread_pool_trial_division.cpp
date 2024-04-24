@@ -22,11 +22,10 @@ public:
     void wait();
     ~ThreadPool();
 private:
-    std::vector<std::thread> threads;
-    std::queue<std::function<void()>> tasks;
-
-    std::mutex queueMutex;
-    std::condition_variable condition;
+    vector<thread> threads;
+    queue<function<void()>> tasks;
+    mutex queueMutex;
+    condition_variable condition;
     bool stop;
 };
 
