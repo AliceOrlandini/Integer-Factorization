@@ -8,14 +8,17 @@
 #include <condition_variable>
 #include <functional>
 #include <future>
-// #include <windows.h>
+#include <windows.h>
 
 using namespace std;
 
-mutex mtx; // mutex for output synchronization
-
+/*
+-----------------------------------------------------------------------------------------
+--------------------------------- (START) THREAD POOL -----------------------------------
+-----------------------------------------------------------------------------------------
+ */
 class ThreadPool {
-    
+
 public:
     ThreadPool(size_t);
 
@@ -41,7 +44,7 @@ private:
 
 ThreadPool::ThreadPool(size_t numThreads) : stop(false) {
 
-    for (size_t i = 0; i < numThreads; ++i) {
+    for (size_t i = 1; i < numThreads + 1; ++i) {
         threads.emplace_back(
             [this] {
                 while (true) {
@@ -59,6 +62,13 @@ ThreadPool::ThreadPool(size_t numThreads) : stop(false) {
                 }
             }
         );
+
+        DWORD_PTR dw = SetThreadAffinityMask(threads.back().native_handle(), DWORD_PTR(1) << i);
+        if (dw == 0) {
+            DWORD dwErr = GetLastError();
+            cerr << "SetThreadAffinityMask failed, GLE=" << dwErr << '\n';
+        }
+
     }
 }
 
@@ -89,11 +99,19 @@ ThreadPool::~ThreadPool() {
         stop = true;
     }
     condition.notify_all();
-    for (thread &worker : threads) {
+    for (thread& worker : threads) {
         worker.join();
     }
 }
+/*
+-----------------------------------------------------------------------------------------
+----------------------------------- (END) THREAD POOL -----------------------------------
+-----------------------------------------------------------------------------------------
+ */
 
+
+
+mutex mtx; // mutex for output synchronization
 
 /**
  * @brief Struct to store prime factors and their exponents
@@ -103,13 +121,14 @@ struct factor_exponent {
     int exponent;
 };
 
+
 /**
  * @brief Function to check if a number is prime
  *
  * @param n number to check if prime
  * @return true if prime, false otherwise
  */
-bool isPrime (unsigned long long n) {
+bool isPrime(unsigned long long n) {
     if (n <= 1) return false;
     if (n <= 3) return true;
     if (n % 3 == 0) return false;
@@ -119,6 +138,7 @@ bool isPrime (unsigned long long n) {
     return true;
 }
 
+
 /**
  * @brief Trial division function to find prime factors in a range
  *
@@ -127,17 +147,28 @@ bool isPrime (unsigned long long n) {
  * @param num number to find prime factors of
  * @param primes vector to store prime factors
  */
-void findPrimesInRange (unsigned long long start, unsigned long long end, unsigned long long num, vector<factor_exponent>& primes) {
+void findPrimesInRange(unsigned long long start, unsigned long long end, unsigned long long num, vector<factor_exponent>& primes) {
+
+    // (START) DEBUG
+    {
+        lock_guard<mutex> lock(mtx);
+        // Get the thread id
+        thread::id this_id = this_thread::get_id();
+
+        cout << "#START: Thread ID: " << this_id << " is running on core: " << GetCurrentProcessorNumber() << endl;
+    }
+    // (END) DEBUG
+
 
     // check all numbers in the range
     for (unsigned long long i = start; i <= end; i += 2) {
-        
+
         if ((num % i) == 0) {
 
             // continue dividing as long as possible
             // this way we avoid adding the same factor multiple times
             int exponent = 0;
-            while (num % i == 0) { 
+            while (num % i == 0) {
                 exponent++;
                 num /= i;
             }
@@ -150,6 +181,17 @@ void findPrimesInRange (unsigned long long start, unsigned long long end, unsign
         }
     }
 
+
+    // (START) DEBUG
+    {
+        lock_guard<mutex> lock(mtx);
+        // Get the thread id
+        thread::id this_id = this_thread::get_id();
+
+        cout << "#END: Thread ID: " << this_id << " is running on core: " << GetCurrentProcessorNumber() << endl;
+    }
+    // (END) DEBUG
+
 }
 
 
@@ -160,7 +202,10 @@ void findPrimesInRange (unsigned long long start, unsigned long long end, unsign
  * @param numThreads number of threads to use
  * @return vector<factor_exponent> vector of prime factors
  */
-vector<factor_exponent> parallelTrialDivision (unsigned long long num, int numThreads, ThreadPool& pool) {
+vector<factor_exponent> parallelTrialDivision(unsigned long long num, int numThreads, ThreadPool& pool) {
+
+    thread::id this_id = this_thread::get_id();
+    cout << "#MAIN: Thread ID: " << this_id << " is running on core: " << GetCurrentProcessorNumber() << endl << endl;
 
     vector<factor_exponent> primes;
     vector<thread> threads;
@@ -206,7 +251,8 @@ vector<factor_exponent> parallelTrialDivision (unsigned long long num, int numTh
 
         if (range % 2 == 0) {
             end = start + range;
-        } else {
+        }
+        else {
             end = start + range - 1;
         }
     }
@@ -222,7 +268,8 @@ vector<factor_exponent> parallelTrialDivision (unsigned long long num, int numTh
     if (primes.empty()) {
         // again we don't need to lock the mutex as we are in the main thread
         primes.push_back({ num, 1 });
-    } else {
+    }
+    else {
 
         // check if all the factors have been found 
         // (otherwise a prime factor larger than the 
@@ -268,8 +315,17 @@ int main(int argc, char* argv[]) {
     // get the mode (0: bash, 1: user)
     bool EXECUTION_MODE = atoi(argv[3]);
 
+    // Set the affinity mask for the main thread
+    DWORD_PTR dw = SetThreadAffinityMask(GetCurrentThread(), DWORD_PTR(1));
+    if (dw == 0) {
+        DWORD dwErr = GetLastError();
+        cerr << "SetThreadAffinityMask failed, GLE=" << dwErr << '\n';
+    }
+
     // creation of the pool of threads
     ThreadPool pool(NUM_THREADS - 1);
+
+
 
     // start measuring time
     chrono::steady_clock::time_point start = chrono::steady_clock::now();
@@ -296,7 +352,8 @@ int main(int argc, char* argv[]) {
             }
         }
         cout << endl;
-    } else {
+    }
+    else {
         cout << duration.count() << endl;
     }
 

@@ -25,7 +25,7 @@ struct factor_exponent {
  * @param n number to check if prime
  * @return true if prime, false otherwise
  */
-bool isPrime (unsigned long long n) {
+bool isPrime(unsigned long long n) {
     if (n <= 1) return false;
     if (n <= 3) return true;
     if (n % 3 == 0) return false;
@@ -35,6 +35,8 @@ bool isPrime (unsigned long long n) {
     return true;
 }
 
+
+
 /**
  * @brief Trial division function to find prime factors in a range
  *
@@ -43,17 +45,25 @@ bool isPrime (unsigned long long n) {
  * @param num number to find prime factors of
  * @param primes vector to store prime factors
  */
-void findPrimesInRange (unsigned long long start, unsigned long long end, unsigned long long num, vector<factor_exponent>& primes) {
+void findPrimesInRange(unsigned long long start, unsigned long long end, unsigned long long num, vector<factor_exponent>& primes) {
+    
+    {
+        lock_guard<mutex> lock(mtx);
+        // Get the thread id
+        thread::id this_id = this_thread::get_id();
+        
+        cout << "#START: Thread ID: " << this_id << " is running on core: " << GetCurrentProcessorNumber() << endl;
+    }
 
     // check all numbers in the range
     for (unsigned long long i = start; i <= end; i += 2) {
-        
+
         if ((num % i) == 0) {
 
             // continue dividing as long as possible
             // this way we avoid adding the same factor multiple times
             int exponent = 0;
-            while (num % i == 0) { 
+            while (num % i == 0) {
                 exponent++;
                 num /= i;
             }
@@ -65,7 +75,16 @@ void findPrimesInRange (unsigned long long start, unsigned long long end, unsign
             }
         }
     }
+
+    {
+        lock_guard<mutex> lock(mtx);
+        // Get the thread id
+        thread::id this_id = this_thread::get_id();
+
+        cout << "#END: Thread ID: " << this_id << " is running on core: " << GetCurrentProcessorNumber() << endl;
+    }
 }
+
 
 /**
  * @brief Main function for parallel factorization, using trial division algorithm
@@ -74,7 +93,10 @@ void findPrimesInRange (unsigned long long start, unsigned long long end, unsign
  * @param numThreads number of threads to use
  * @return vector<factor_exponent> vector of prime factors
  */
-vector<factor_exponent> parallelTrialDivision (unsigned long long num, int numThreads) {
+vector<factor_exponent> parallelTrialDivision(unsigned long long num, int numThreads) {
+
+    thread::id this_id = this_thread::get_id();
+    cout << "#MAIN: Thread ID: " << this_id << " is running on core: " << GetCurrentProcessorNumber() << endl<<endl;
 
     vector<factor_exponent> primes;
     vector<thread> threads;
@@ -109,8 +131,15 @@ vector<factor_exponent> parallelTrialDivision (unsigned long long num, int numTh
     unsigned long long start = 3;
     unsigned long long end = (range % 2 == 0) ? range + 1 : range;
 
+	// Set the affinity mask for the main thread
+	DWORD_PTR dw = SetThreadAffinityMask(GetCurrentThread(), DWORD_PTR(1));
+    if (dw == 0) {
+        DWORD dwErr = GetLastError();
+        cerr << "SetThreadAffinityMask failed, GLE=" << dwErr << '\n';
+    }
+
     // create and start the threads
-    for (int i = 0; i < (numThreads - 1); ++i) {
+    for (int i = 1; i < numThreads; ++i) {
 
         threads.emplace_back(findPrimesInRange, start, end, num, ref(primes));
         DWORD_PTR dw = SetThreadAffinityMask(threads.back().native_handle(), DWORD_PTR(1) << i);
@@ -118,13 +147,14 @@ vector<factor_exponent> parallelTrialDivision (unsigned long long num, int numTh
             DWORD dwErr = GetLastError();
             cerr << "SetThreadAffinityMask failed, GLE=" << dwErr << '\n';
         }
-        
+
         // update the start and end for the next thread
         start = end + 2;
 
         if (range % 2 == 0) {
             end = start + range;
-        } else {
+        }
+        else {
             end = start + range - 1;
         }
     }
@@ -142,7 +172,8 @@ vector<factor_exponent> parallelTrialDivision (unsigned long long num, int numTh
     if (primes.empty()) {
         // again we don't need to lock the mutex as we are in the main thread
         primes.push_back({ num, 1 });
-    } else {
+    }
+    else {
 
         // check if all the factors have been found 
         // (otherwise a prime factor larger than the 
@@ -213,7 +244,8 @@ int main(int argc, char* argv[]) {
             }
         }
         cout << endl;
-    } else {
+    }
+    else {
         cout << duration.count() << endl;
     }
 
