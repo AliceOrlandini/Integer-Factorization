@@ -1,120 +1,29 @@
+// Modified version of efficient_trial_division.cpp
+// Here in differently from the previous code, the Thread Pool is created
+// before the time measurement starts. This is done to avoid the time taken
+// to create the threads to be counted in the total time taken to execute the program.
+// Compared with new_trial_division.cpp, here the Thread Pool is created 
+// exploiting simple code and without creating a general-purpose ThreadPool class.
+
 #include <iostream>
 #include <vector>
 #include <thread>
 #include <mutex>
 #include <chrono>
 #include <math.h>
-#include <queue>
 #include <condition_variable>
-#include <functional>
-#include <future>
 #include <windows.h>
 
 using namespace std;
 
-/*
------------------------------------------------------------------------------------------
---------------------------------- (START) THREAD POOL -----------------------------------
------------------------------------------------------------------------------------------
- */
-class ThreadPool {
-
-public:
-    ThreadPool(size_t);
-
-    template<class F, class... Args>
-    auto enqueue(F&& f, Args&&... args) -> future<typename result_of<F(Args...)>::type>;
-
-    void wait();
-
-    ~ThreadPool();
-
-private:
-    vector<thread> threads;
-
-    queue<function<void()>> tasks;
-
-    mutex queueMutex;
-
-    condition_variable condition;
-
-    bool stop;
-
-};
-
-ThreadPool::ThreadPool(size_t numThreads) : stop(false) {
-
-    for (size_t i = 1; i < numThreads + 1; ++i) {
-        threads.emplace_back(
-            [this] {
-
-                function<void()> task;
-                {
-                    unique_lock<mutex> lock(this->queueMutex);
-                    this->condition.wait(lock, [this] { return this->stop || !this->tasks.empty(); });
-                    if (this->stop && this->tasks.empty()) {
-                        return;
-                    }
-                    task = move(this->tasks.front());
-                    this->tasks.pop();
-                }
-                task();
-        
-            }
-        );
-
-        DWORD_PTR dw = SetThreadAffinityMask(threads.back().native_handle(), DWORD_PTR(1) << i);
-        if (dw == 0) {
-            DWORD dwErr = GetLastError();
-            cerr << "SetThreadAffinityMask failed, GLE=" << dwErr << '\n';
-        }
-
-    }
-}
-
-template<class F, class... Args>
-auto ThreadPool::enqueue(F&& f, Args&&... args) -> future<typename result_of<F(Args...)>::type> {
-    using returnType = decltype(f(args...));
-    auto task = make_shared<packaged_task<returnType()>>(bind(forward<F>(f), forward<Args>(args)...));
-    future<returnType> res = task->get_future();
-    {
-        unique_lock<mutex> lock(queueMutex);
-        if (stop) {
-            throw runtime_error("enqueue on stopped ThreadPool");
-        }
-        tasks.emplace([task]() { (*task)(); });
-    }
-    condition.notify_one();
-    return res;
-}
-
-void ThreadPool::wait() {
-    for (thread& worker : threads) {
-        worker.join();
-    }
-    // unique_lock<mutex> lock(queueMutex);
-    // condition.wait(lock, [this] { return tasks.empty(); });
-}
-
-ThreadPool::~ThreadPool() {
-    {
-        unique_lock<mutex> lock(queueMutex);
-        stop = true;
-    }
-    condition.notify_all();
-    // for (thread& worker : threads) {
-    //     worker.join();
-    // }
-}
-/*
------------------------------------------------------------------------------------------
------------------------------------ (END) THREAD POOL -----------------------------------
------------------------------------------------------------------------------------------
- */
-
-
-
 mutex mtx; // mutex for output synchronization
+
+// Mutex for accessing in mutual exclusion the waiting_room and ready variables
+mutex queueMutex;
+// Condition variable for making the threads wait for the main thread to start them
+condition_variable waiting_room;
+// When the main thread is ready to start the other threads, it sets this variable to true
+bool ready = false;
 
 /**
  * @brief Struct to store prime factors and their exponents
@@ -124,14 +33,13 @@ struct factor_exponent {
     int exponent;
 };
 
-
 /**
  * @brief Function to check if a number is prime
  *
  * @param n number to check if prime
  * @return true if prime, false otherwise
  */
-bool isPrime(unsigned long long n) {
+bool isPrime (unsigned long long n) {
     if (n <= 1) return false;
     if (n <= 3) return true;
     if (n % 3 == 0) return false;
@@ -141,7 +49,6 @@ bool isPrime(unsigned long long n) {
     return true;
 }
 
-
 /**
  * @brief Trial division function to find prime factors in a range
  *
@@ -150,27 +57,68 @@ bool isPrime(unsigned long long n) {
  * @param num number to find prime factors of
  * @param primes vector to store prime factors
  */
-void findPrimesInRange(unsigned long long start, unsigned long long end, unsigned long long num, vector<factor_exponent>& primes) {
+void findPrimesInRange (unsigned long long start, unsigned long long end, unsigned long long num, vector<factor_exponent>& primes) {
 
-    // (START) DEBUG
-    // {
-    //     lock_guard<mutex> lock(mtx);
-    //     // Get the thread id
-    //     thread::id this_id = this_thread::get_id();
-    //     cout << "#START: Thread ID: " << this_id << " is running on core: " << GetCurrentProcessorNumber() << endl;
-    // }
-    // (END) DEBUG
+    if (GetCurrentProcessorNumber() == 0) {
+        // Main thread
+        
+        // (START) DEBUG
+        // {
+        //     lock_guard<mutex> lock(mtx);
+        //     // Get the thread id
+        //     thread::id this_id = this_thread::get_id();
+        //     cout << "#START: Thread ID: " << this_id << " is running on core: " << GetCurrentProcessorNumber() << endl;
+        // }
+        // (END) DEBUG
 
+        // long long sum = 0;
+        // for (int i = 0; i < 1999999999; i++) {
+        //     sum += i;
+        // }
+        // cout << "Sum: " << sum << endl;
+
+        unique_lock<mutex> lock(queueMutex);
+        waiting_room.notify_all();
+        ready = true;
+    }
+    else {
+        // Other threads
+
+        {
+            if(!ready){
+                unique_lock<mutex> lock(queueMutex);
+                waiting_room.wait(lock);
+            }
+        }
+
+        // (START) DEBUG
+        // {
+        //     lock_guard<mutex> lock(mtx);
+        //     // Get the thread id
+        //     thread::id this_id = this_thread::get_id();
+        //     cout << "#START: Thread ID: " << this_id << " is running on core: " << GetCurrentProcessorNumber() << endl;
+        // }
+        // (END) DEBUG
+
+        // if (GetCurrentProcessorNumber() != 0) {
+        //     long long sum = 0;
+        //     for (int i = 0; i < 999999999; i++) {
+        //         sum += i;
+        //     }
+        //     cout << "Sum: " << sum << endl;
+        // }
+
+    }
 
     // check all numbers in the range
     for (unsigned long long i = start; i <= end; i += 2) {
-
+        
         if ((num % i) == 0) {
 
             // continue dividing as long as possible
             // this way we avoid adding the same factor multiple times
             int exponent = 0;
-            while (num % i == 0) {
+            while (num % i == 0) { 
                 exponent++;
                 num /= i;
             }
@@ -183,7 +131,6 @@ void findPrimesInRange(unsigned long long start, unsigned long long end, unsigne
         }
     }
 
-
     // (START) DEBUG
     // {
     //     lock_guard<mutex> lock(mtx);
@@ -195,7 +142,6 @@ void findPrimesInRange(unsigned long long start, unsigned long long end, unsigne
 
 }
 
-
 /**
  * @brief Main function for parallel factorization, using trial division algorithm
  *
@@ -203,12 +149,7 @@ void findPrimesInRange(unsigned long long start, unsigned long long end, unsigne
  * @param numThreads number of threads to use
  * @return vector<factor_exponent> vector of prime factors
  */
-vector<factor_exponent> parallelTrialDivision(unsigned long long num, int numThreads, ThreadPool& pool) {
-
-    // (START) DEBUG
-    // thread::id this_id = this_thread::get_id();
-    // cout << "#MAIN: Thread ID: " << this_id << " is running on core: " << GetCurrentProcessorNumber() << endl << endl;
-    // (END) DEBUG
+vector<factor_exponent> parallelTrialDivision (unsigned long long num, int numThreads) {
 
     vector<factor_exponent> primes;
     vector<thread> threads;
@@ -244,35 +185,44 @@ vector<factor_exponent> parallelTrialDivision(unsigned long long num, int numThr
     unsigned long long end = (range % 2 == 0) ? range + 1 : range;
 
     // create and start the threads
-    for (int i = 0; i < (numThreads - 1); ++i) {
+    for (int i = 1; i < numThreads; ++i) {
 
-        // enqueue the task to the thread pool
-        pool.enqueue(findPrimesInRange, start, end, num, ref(primes));
+        threads.emplace_back(findPrimesInRange, start, end, num, ref(primes));
+        
+        // Set the affinity mask for the thread
+        DWORD_PTR dw = SetThreadAffinityMask(threads.back().native_handle(), DWORD_PTR(1) << i);
+        if (dw == 0) {
+            DWORD dwErr = GetLastError();
+            cerr << "SetThreadAffinityMask failed, GLE=" << dwErr << '\n';
+        }
 
         // update the start and end for the next thread
         start = end + 2;
 
         if (range % 2 == 0) {
             end = start + range;
-        }
-        else {
+        } else {
             end = start + range - 1;
         }
     }
     // give to the last thread the remaining work
     end = sqrt_num;
 
+    // start measuring time
+    chrono::steady_clock::time_point start_time = chrono::steady_clock::now();
+
     findPrimesInRange(start, end, num, primes);
 
-    // wait for all the threads to finish
-    pool.wait();
+    // wait for the other threads to finish
+    for (thread& thread_ : threads) {
+        thread_.join();
+    }
 
     // if primes is empty than the number is prime so add it to the vector
     if (primes.empty()) {
         // again we don't need to lock the mutex as we are in the main thread
         primes.push_back({ num, 1 });
-    }
-    else {
+    } else {
 
         // check if all the factors have been found 
         // (otherwise a prime factor larger than the 
@@ -296,6 +246,14 @@ vector<factor_exponent> parallelTrialDivision(unsigned long long num, int numThr
             primes.push_back({ old_num / product, 1 });
         }
     }
+
+    // stop measuring time
+    chrono::steady_clock::time_point end_time = chrono::steady_clock::now();
+
+    // calculate the time duration
+    chrono::milliseconds duration = chrono::duration_cast<chrono::milliseconds>(end_time - start_time);
+
+    cout << "\nTime taken INSIDE: " << duration.count() << " milliseconds." << endl<<endl;
 
     return primes;
 }
@@ -325,15 +283,12 @@ int main(int argc, char* argv[]) {
         cerr << "SetThreadAffinityMask failed, GLE=" << dwErr << '\n';
     }
 
-    // creation of the pool of threads
-    ThreadPool pool(NUM_THREADS - 1);
-
 
     // start measuring time
     chrono::steady_clock::time_point start = chrono::steady_clock::now();
 
     // find the prime factors of the number 
-    vector<factor_exponent> factors = parallelTrialDivision(NUMBER, NUM_THREADS, pool);
+    vector<factor_exponent> factors = parallelTrialDivision(NUMBER, NUM_THREADS);
 
     // stop measuring time
     chrono::steady_clock::time_point end = chrono::steady_clock::now();
@@ -354,8 +309,7 @@ int main(int argc, char* argv[]) {
             }
         }
         cout << endl;
-    }
-    else {
+    } else {
         cout << duration.count() << endl;
     }
 
