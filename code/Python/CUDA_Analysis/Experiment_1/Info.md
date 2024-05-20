@@ -1,0 +1,1 @@
+./execute_CUDA_blocks.sh ./zero_trial_division_NO_OUTPUT 30 64000 3200 975734686214396237

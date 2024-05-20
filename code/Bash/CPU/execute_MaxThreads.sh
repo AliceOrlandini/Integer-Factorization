@@ -26,7 +26,7 @@ echo "Executing the program with the following parameters:"
 echo ""
 echo "Executable Path: ${EXECUTABLE}"
 echo "Number of iterations: ${NUM_ITERATIONS}"
-echo "Number of threads: ${NUM_THREADS}"
+echo "Number of threads: ${MAX_THREADS}"
 echo "Number to be factorized: ${NUMBER}"
 echo ""
 
