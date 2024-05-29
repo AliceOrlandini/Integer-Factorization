@@ -1,13 +1,23 @@
 @echo off
 setlocal enabledelayedexpansion
 
+REM This script is used to execute an executable for NUM_ITERATIONS times,
+REM with NUM_THREADS threads, and changing the number to be factorized from STEP to MAX_NUMBER,
+REM with the step of STEP. The output is saved in a CSV file.
+
 REM Check the number of parameters
 if "%~5"=="" (
-    echo Error: Illegal number of parameters, please insert: executable path, number of iterations, number of threads, max number to be factorized, and step of the number.
+    echo Error: Illegal number of parameters, please provide:
+    echo 1. Executable path
+    echo 2. Number of iterations
+    echo 3. Number of threads
+    echo 4. Max number to be factorized
+    echo 5. Step of the number
     exit /b 1
 )
 
-REM Parameters:
+REM PARAMETERS
+
 REM Path of the executable
 set "EXECUTABLE=%~1"
 REM Number of iterations

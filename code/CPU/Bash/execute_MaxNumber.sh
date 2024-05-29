@@ -1,12 +1,21 @@
 #! /bin/bash
 
+# This script is used to execute an executable for NUM_ITERATIONS times, changing the number to be factorized
+# from STEP to MAX_NUMBER, with a step of STEP. The output of the program is saved in a CSV.
+
 # Check the number of parameters
 if [ "$#" -ne 5 ]; then
-    echo "Error: Illegal number of parameters, please insert: executable path, number of iterations, number of threads, max number to be factorized and step of the number."
+    echo "Error: Illegal number of parameters, please provide:"
+    echo " 1. Executable path"
+    echo " 2. Number of iterations"
+    echo " 3. Number of threads"
+    echo " 4. Max number to be factorized"
+    echo " 5. Step of the number"
     exit 1
 fi
 
-# Parameters:
+# PARAMETERS
+
 # Path of the executable
 EXECUTABLE=$1
 # Number of iterations

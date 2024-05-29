@@ -1,6 +1,20 @@
 #! /bin/bash
 
-# Parameters
+# This script is used to execute an executable with a specific configuration
+# for NUM_ITERATIONS times. The output of the program is saved in a CSV
+
+# Check the number of parameters
+if [ "$#" -ne 4 ]; then
+    echo "Error: Illegal number of parameters, please provide:"
+    echo " 1. Executable path"
+    echo " 2. Number of iterations"
+    echo " 3. Number of threads"
+    echo " 4. Number to be factorized"
+    exit 1
+fi
+
+# PARAMETERS
+
 # Path of the executable
 EXECUTABLE=$1
 # Number of iterations

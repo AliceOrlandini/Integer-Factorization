@@ -1,13 +1,21 @@
 @echo off
 setlocal enabledelayedexpansion
 
+REM This script is used to execute an executable for NUM_ITERATIONS times,
+REM changing the number of threads from 1 to MAX_THREADS. The output is saved in a CSV file.
+
 REM Check the number of parameters
 if "%~4"=="" (
-    echo Error: Illegal number of parameters, please insert: executable path, number of iterations, max number of threads, and number to be factorized.
+    echo Error: Illegal number of parameters, please provide: 
+    echo 1. Executable path
+    echo 2. Number of iterations
+    echo 3. Max number of threads
+    echo 4. Number to be factorized
     exit /b 1
 )
 
-REM Parameters:
+REM PARAMETERS
+
 REM Path of the executable
 set "EXECUTABLE=%~1"
 REM Number of iterations

@@ -1,5 +1,8 @@
 #! /bin/bash
 
+# This script is used to execute a CUDA program for NUM_ITERATIONS times, changing the number of CUDA Blocks
+# from STEP_CUDA_BLOCKS to MAX_CUDA_BLOCKS. The output of the program is saved in a CSV. 
+
 # Check the number of parameters
 if [ "$#" -ne 5 ]; then
     echo "Error: Illegal number of parameters, please provide:"

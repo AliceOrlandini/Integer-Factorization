@@ -1,3 +1,16 @@
 .vscode
+
+
+code/CPU/Bash/output_*
+
+code/CPU/Batch/*.exe
+
+code/CPU/C++/VisualStudioCommunity
+code/CPU/C++/VTune
+code/CPU/C++/DS_Store
+code/CPU/C++/.vscode
+code/CPU/C++/*.exe
+code/CPU/C++/*.out
+
+
 code/Python/*/output*.csv
-code/Batch/*.exe

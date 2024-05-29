@@ -10,7 +10,6 @@ using namespace std;
 
 mutex mtx; // mutex for output synchronization
 
-
 /**
  * @brief Struct to store prime factors and their exponents
  */
@@ -34,7 +33,6 @@ bool isPrime(unsigned long long n) {
     }
     return true;
 }
-
 
 
 /**
