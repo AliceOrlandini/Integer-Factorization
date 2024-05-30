@@ -1,3 +1,22 @@
+// Modified version of efficient_trial_division.cpp
+// Here in differently from the previous code, the Thread Pool is created
+// before the time measurement starts. This is done to avoid the time taken
+// to create the threads to be counted in the total time taken to execute the program.
+// Compared with new_trial_division.cpp, here the Thread Pool is created 
+// exploiting simple code and without creating a general-purpose ThreadPool class.
+
+/**
+ * [DEBUG VERSION] of [OPTIMIZED + THREAD POOL + AFFINITY VERSION]
+ * Here the Thread Pool is considered deploying a simpler code 
+ * (without developing a general-purpose ThreadPool class).
+ * This code was created for having a comparison and testing 
+ * if the [OPTIMIZED + THREAD POOL + AFFINITY VERSION] was working
+ * as expected.   
+ * 
+ */
+
+
+
 #include <iostream>
 #include <vector>
 #include <thread>
