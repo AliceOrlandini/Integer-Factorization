@@ -1,21 +1,12 @@
-// Modified version of efficient_trial_division.cpp
-// Here in differently from the previous code, the Thread Pool is created
-// before the time measurement starts. This is done to avoid the time taken
-// to create the threads to be counted in the total time taken to execute the program.
-// Compared with new_trial_division.cpp, here the Thread Pool is created 
-// exploiting simple code and without creating a general-purpose ThreadPool class.
-
 /**
- * [DEBUG VERSION] of [OPTIMIZED + THREAD POOL + AFFINITY VERSION]
- * Here the Thread Pool is considered deploying a simpler code 
- * (without developing a general-purpose ThreadPool class).
- * This code was created for having a comparison and testing 
- * if the [OPTIMIZED + THREAD POOL + AFFINITY VERSION] was working
- * as expected.   
+ * [OPTIMIZED + THREAD POOL + AFFINITY VERSION]
+ * In this optimized version of the parallel trial division algorithm,
+ * a thread pool is used to manage the threads. The thread pool is created
+ * before the time measurement starts to avoid counting the time taken to
+ * create the threads in the total time taken to execute the program.
+ * Furthermore, each thread is assigned to a different core using thread affinity.
  * 
  */
-
-
 
 #include <iostream>
 #include <vector>
@@ -111,8 +102,6 @@ void ThreadPool::wait() {
     for (thread& worker : threads) {
         worker.join();
     }
-    // unique_lock<mutex> lock(queueMutex);
-    // condition.wait(lock, [this] { return tasks.empty(); });
 }
 
 ThreadPool::~ThreadPool() {
@@ -121,9 +110,6 @@ ThreadPool::~ThreadPool() {
         stop = true;
     }
     condition.notify_all();
-    // for (thread& worker : threads) {
-    //     worker.join();
-    // }
 }
 /*
 -----------------------------------------------------------------------------------------
@@ -133,43 +119,47 @@ ThreadPool::~ThreadPool() {
 
 
 
-mutex mtx; // mutex for output synchronization
+// Mutex for synchronizing access to shared data
+mutex mtx;
 
 /**
  * @brief Struct to store prime factors and their exponents
  */
 struct factor_exponent {
-    unsigned long long factor;
-    int exponent;
+    unsigned long long factor; // Prime factor
+    int exponent; // Exponent of the prime factor
 };
 
-
 /**
- * @brief Function to check if a number is prime
- *
- * @param n number to check if prime
- * @return true if prime, false otherwise
+ * @brief Checks if a number is prime
+ * 
+ * @param n Number to check for primality
+ * @return true if the number is prime, false otherwise
  */
-bool isPrime(unsigned long long n) {
+bool isPrime (unsigned long long n) {
+    // Numbers less than or equal to 1 are not prime
     if (n <= 1) return false;
+    // Numbers 2 and 3 are prime
     if (n <= 3) return true;
+    // Multiples of 3 are not prime
     if (n % 3 == 0) return false;
+    // Check for factors from 5 to sqrt(n)
     for (unsigned long long i = 5; i * i <= n; i += 6) {
+        // If divisible by i or (i + 2), n is not prime
         if (n % i == 0 || n % (i + 2) == 0) return false;
     }
     return true;
 }
 
-
 /**
- * @brief Trial division function to find prime factors in a range
- *
- * @param start integer to start from
- * @param end integer to end at
- * @param num number to find prime factors of
- * @param primes vector to store prime factors
+ * @brief Finds prime factors of a number in a given range
+ * 
+ * @param start Starting number of the range
+ * @param end Ending number of the range
+ * @param num Number to be factorized
+ * @param primes Vector to store prime factors and their exponents
  */
-void findPrimesInRange(unsigned long long start, unsigned long long end, unsigned long long num, vector<factor_exponent>& primes) {
+void findPrimesInRange (unsigned long long start, unsigned long long end, unsigned long long num, vector<factor_exponent>& primes) {
 
     // (START) DEBUG
     // {
@@ -181,27 +171,25 @@ void findPrimesInRange(unsigned long long start, unsigned long long end, unsigne
     // (END) DEBUG
 
 
-    // check all numbers in the range
+    // Iterate through the range
     for (unsigned long long i = start; i <= end; i += 2) {
-
+        // Check if num is divisible by i
         if ((num % i) == 0) {
-
-            // continue dividing as long as possible
-            // this way we avoid adding the same factor multiple times
             int exponent = 0;
-            while (num % i == 0) {
+            // Count the exponent of the prime factor
+            while (num % i == 0) { 
                 exponent++;
+                // Divide num by i as long as possible
+                // this avoids adding the same prime factor multiple times
                 num /= i;
             }
-
-            // lock the mutex to save the prime factor and its exponent
+            // Lock the mutex to save the prime factor and its exponent
             if (isPrime(i)) {
                 lock_guard<mutex> lock(mtx);
                 primes.push_back({ i, exponent });
             }
         }
     }
-
 
     // (START) DEBUG
     // {
@@ -216,61 +204,62 @@ void findPrimesInRange(unsigned long long start, unsigned long long end, unsigne
 
 
 /**
- * @brief Main function for parallel factorization, using trial division algorithm
- *
- * @param num number to find prime factors of
- * @param numThreads number of threads to use
- * @return vector<factor_exponent> vector of prime factors
+ * @brief Parallel factorization using trial division
+ * 
+ * @param num Number to be factorized
+ * @param numThreads Number of threads to use
+ * @param pool ThreadPool object to manage the threads
+ * @return vector<factor_exponent> Vector of prime factors and their exponents
  */
-vector<factor_exponent> parallelTrialDivision(unsigned long long num, int numThreads, ThreadPool& pool) {
+vector<factor_exponent> parallelTrialDivision (unsigned long long num, int numThreads, ThreadPool& pool) {
 
     // (START) DEBUG
     // thread::id this_id = this_thread::get_id();
     // cout << "#MAIN: Thread ID: " << this_id << " is running on core: " << GetCurrentProcessorNumber() << endl << endl;
     // (END) DEBUG
 
+    // Vector to store prime factors and their exponents
     vector<factor_exponent> primes;
+    // Vector to store threads
     vector<thread> threads;
 
-    // number of threads to be used for parallelization
-    // const int numThreads = thread::hardware_concurrency();
-
-    // store the original number for later use
+    // Store the original number for later use
     unsigned long long old_num = num;
 
-    // checking in advance if the number is divisible by 2
-    // to avoid checking even numbers in the loop
+    // Checking in advance if the number is divisible by 2
+    // To avoid checking even numbers in the loop
     if (num % 2 == 0) {
         int exponent = 0;
         while (num % 2 == 0) {
             exponent++;
             num /= 2;
         }
-        // here we don't need to lock the mutex as we are in the main thread
+        // Here we don't need to lock the mutex as we are in the main thread
         primes.push_back({ 2, exponent });
     }
 
-    // now the interval to check is nearly halved
-    // as checking divisibility by even numbers is not needed
+    // Now the interval to check is nearly halved
+    // As checking divisibility by even numbers is not needed
 
+    // Calculate the square root of num
     unsigned long long sqrt_num = (unsigned long long) sqrt(num);
 
-    // divide the work equally among the threads
+    // Calculate the range each thread will process
     unsigned long long range = sqrt_num / numThreads;
 
-    // define the start and end of the range for the first thread
+    // Starting number for the first thread
     unsigned long long start = 3;
+    // Ending number for the first thread
     unsigned long long end = (range % 2 == 0) ? range + 1 : range;
 
-    // create and start the threads
+
     for (int i = 0; i < (numThreads - 1); ++i) {
 
         // enqueue the task to the thread pool
         pool.enqueue(findPrimesInRange, start, end, num, ref(primes));
 
-        // update the start and end for the next thread
+        // Update the start and end for the next thread
         start = end + 2;
-
         if (range % 2 == 0) {
             end = start + range;
         }
@@ -278,103 +267,106 @@ vector<factor_exponent> parallelTrialDivision(unsigned long long num, int numThr
             end = start + range - 1;
         }
     }
-    // give to the last thread the remaining work
+    // Give to the last thread the remaining work
     end = sqrt_num;
 
     findPrimesInRange(start, end, num, primes);
 
-    // wait for all the threads to finish
+    // Wait for all the threads to finish
     pool.wait();
 
-    // if primes is empty than the number is prime so add it to the vector
-    if (primes.empty()) {
-        // again we don't need to lock the mutex as we are in the main thread
-        primes.push_back({ num, 1 });
+    // Wait for the other threads to finish
+    for (thread& thread_ : threads) {
+        thread_.join();
     }
-    else {
 
-        // check if all the factors have been found 
+    // If no prime factors found, num itself is prime
+    if (primes.empty()) {
+        // Again we don't need to lock the mutex as we are in the main thread
+        primes.push_back({ num, 1 });
+    } 
+    else {
+        // Check if all the prime factors have been found 
         // (otherwise a prime factor larger than the 
         // square root of the number is missing)
 
-        // add the (possible) missing prime factor
         unsigned long long product = 1;
+        // Calculate the product of found prime factors
         for (vector<factor_exponent>::iterator it = primes.begin(); it != primes.end(); ++it) {
-
-            // calculate the product of the prime factors by multiplying each 
+            // Calculate the product of the prime factors by multiplying each 
             // factor by itself for the number of times stated by the exponent
-            // not using pow() as it cuts off large numbers
+            // Not using pow() as it cuts off large numbers
             for (int i = 0; i < it->exponent; i++) {
                 product *= it->factor;
             }
-
         }
-        // if the product is different from the original number,
-        // then the missing prime factor is the number divided by the product
+        // If product is different from the original number, add the missing prime factor
         if (product != old_num) {
             primes.push_back({ old_num / product, 1 });
         }
     }
 
+    // Return the vector of prime factors and their exponents
     return primes;
 }
 
 int main(int argc, char* argv[]) {
-
-    // check if the number of arguments is correct
+    // Check for correct number of arguments
     if (argc != 4) {
         cout << "Please provide:\n1) Number of Threads\n2) Number to be Factorized\n3) 0 or 1 to execute the program in BASH or USER mode." << endl;
+        // Exit if arguments are incorrect
         return 1;
     }
 
-    // get the number of threads from the command line argument
+    // Get the number of threads from command line arguments
     int NUM_THREADS = atoi(argv[1]);
 
-    // get the number from the command line argument
-    // and convert it to unsigned long long using stoull
+    // Get the number to be factorized from command line arguments
+    // And convert it to unsigned long long using stoull
     unsigned long long NUMBER = stoull(argv[2]);
 
-    // get the mode (0: bash, 1: user)
+    // Get the execution mode (BASH or USER) from command line arguments
     bool EXECUTION_MODE = atoi(argv[3]);
 
-    // Set the affinity mask for the main thread
+    // Set the affinity mask for the Main Thread
     DWORD_PTR dw = SetThreadAffinityMask(GetCurrentThread(), DWORD_PTR(1));
     if (dw == 0) {
         DWORD dwErr = GetLastError();
         cerr << "SetThreadAffinityMask failed, GLE=" << dwErr << '\n';
     }
 
-    // creation of the pool of threads
+    // Creation of the Pool of Threads
     ThreadPool pool(NUM_THREADS - 1);
 
-
-    // start measuring time
+    // Start measuring time
     chrono::steady_clock::time_point start = chrono::steady_clock::now();
 
-    // find the prime factors of the number 
+    // Factorize the number using multiple threads
     vector<factor_exponent> factors = parallelTrialDivision(NUMBER, NUM_THREADS, pool);
 
-    // stop measuring time
+    // Stop measuring time
     chrono::steady_clock::time_point end = chrono::steady_clock::now();
 
-    // calculate the time duration
+    // Calculate the time duration
     chrono::milliseconds duration = chrono::duration_cast<chrono::milliseconds>(end - start);
 
-    // depending on the execution mode, print some informations on screen
+    // If USER mode
     if (EXECUTION_MODE) {
         cout << "Time taken: " << duration.count() << " milliseconds." << endl;
 
         cout << NUMBER << " = ";
         for (vector<factor_exponent>::iterator it = factors.begin(); it != factors.end(); ++it) {
+            // Print each prime factor and its exponent
             cout << it->factor << "^" << it->exponent;
-            // print a * between factors except for the last one
             if (next(it) != factors.end()) {
+                // Print * between factors
                 cout << " * ";
             }
         }
         cout << endl;
-    }
+    } 
     else {
+        // If BASH mode, print only the time taken
         cout << duration.count() << endl;
     }
 

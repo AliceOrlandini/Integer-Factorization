@@ -131,6 +131,7 @@ vector<factor_exponent> parallelTrialDivision (unsigned long long num, int numTh
     }
     // Give to the last thread the remaining work
     end = sqrt_num;
+
     findPrimesInRange(start, end, num, primes);
 
     // Wait for the other threads to finish
@@ -183,7 +184,7 @@ int main(int argc, char* argv[]) {
     // And convert it to unsigned long long using stoull
     unsigned long long NUMBER = stoull(argv[2]);
 
-    // Get the execution mode (BASH or USER) from command line arguments
+    // Get the execution mode (0:BASH or 1:USER) from command line arguments
     bool EXECUTION_MODE = atoi(argv[3]);
 
     // Start measuring time

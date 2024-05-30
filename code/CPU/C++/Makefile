@@ -2,7 +2,7 @@ CC = g++
 
 CFLAGS  = -std=c++11 -lpthread
 
-TARGET = inefficient_trial_division
+TARGET = First_TrialDivision
 
 all: $(TARGET)
  	$(TARGET): $(TARGET).cpp
