@@ -1,10 +1,9 @@
 # Integer-Factorization
-A Computer Architecture Project for the 2023/2024 academic year.
 
 ![Integer-Factorization](Slides/Resources/IntegerFactorization.png)
 
 ## Overview
-This repository contains implementations of a parallel trial division algorithm for factorizing numbers. The repository includes both the initial and optimized versions, as well as a version utilizing CUDA for GPU acceleration.
+This repository houses a comprehensive Computer Architecture project for the 2023/2024 academic year, focusing on the implementation and optimization of a parallel trial division algorithm for integer factorization. The project explores both CPU and GPU approaches, leveraging parallel computing techniques to enhance performance. It includes initial and optimized versions of the algorithm, with specific implementations for CPU using C++ and for GPU using CUDA. The project also features detailed performance analyses, scalability studies, and various scripts for running and benchmarking the implementations.
 
 ## Project Structure
 
