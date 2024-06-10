@@ -1,6 +1,5 @@
 .vscode
 
-
 code/CPU/Bash/output_*
 
 code/CPU/Batch/*.exe
@@ -12,5 +11,3 @@ code/CPU/C++/.vscode
 code/CPU/C++/*.exe
 code/CPU/C++/*.out
 
-
-code/Python/*/output*.csv
